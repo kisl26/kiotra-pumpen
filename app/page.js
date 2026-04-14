@@ -1,184 +1,227 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-const PUMPS = [
-  { id: 1, name: 'Pumpe 1', location: 'Keller A', model: 'Yaskawa GA500', status: 'on', hz: 38 },
-  { id: 2, name: 'Pumpe 2', location: 'Keller B', model: 'Yaskawa GA500', status: 'off', hz: 0 },
-  { id: 3, name: 'Pumpe 3', location: 'Außenlager', model: 'Yaskawa GA500', status: 'offline', hz: 0 },
-]
-
+/* ─── Inline Styles (alle im Phone-Viewport-Kontext) ─── */
 const S = {
   phone: { width: 360, background: '#1a1a1a', borderRadius: 40, padding: 12, margin: '0 auto' },
-  screen: { background: '#f5f5f0', borderRadius: 30, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 700 },
+  screen: { background: '#fafaf8', borderRadius: 30, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 700 },
   statusBar: { background: '#111', padding: '10px 20px 6px', display: 'flex', justifyContent: 'space-between', color: '#fff', fontSize: 11, fontWeight: 500 },
-  topBar: { background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.1)', padding: '14px 16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { fontSize: 17, fontWeight: 500, color: '#1a1a1a' },
-  topSub: { fontSize: 12, color: '#888', marginTop: 2 },
-  avatar: { width: 34, height: 34, borderRadius: '50%', background: '#EAF3DE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 500, color: '#27500A' },
-  content: { flex: 1, padding: 12, overflowY: 'auto' },
-  sectionLabel: { fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 },
-  card: { background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: 14, marginBottom: 10 },
-  cardHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 8 },
-  pumpName: { fontSize: 15, fontWeight: 500, color: '#1a1a1a' },
-  pumpSub: { fontSize: 11, color: '#888', marginTop: 2 },
-  stats: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 },
-  stat: { background: '#f5f5f0', borderRadius: 8, padding: '8px 10px', textAlign: 'center' },
-  statVal: { fontSize: 17, fontWeight: 500, color: '#1a1a1a' },
-  statLbl: { fontSize: 10, color: '#888', marginTop: 2 },
-  sliderLabel: { display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888', marginBottom: 5 },
-  btnRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
-  btnStart: { padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '0.5px solid #97C459', background: '#EAF3DE', color: '#27500A' },
-  btnStop: { padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '0.5px solid #F09595', background: '#FCEBEB', color: '#791F1F' },
-  logRow: { display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '3px 0', color: '#888' },
-  divider: { height: '0.5px', background: 'rgba(0,0,0,0.08)', margin: '8px 0' },
-  navbar: { background: '#fff', borderTop: '0.5px solid rgba(0,0,0,0.1)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', padding: '8px 0 16px' },
-  navItem: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, fontSize: 10, cursor: 'pointer', border: 'none', background: 'none', padding: '4px 0' },
-  demoBanner: { background: '#EAF3DE', borderBottom: '0.5px solid #97C459', padding: '6px 12px', fontSize: 11, color: '#27500A', textAlign: 'center', fontWeight: 500 },
+
+  demoBanner: { background: '#dcfce7', borderBottom: '1px solid rgba(22,163,74,0.2)', padding: '6px 12px', fontSize: 11, color: '#16a34a', textAlign: 'center', fontWeight: 500 },
+
+  header: { background: '#fff', borderBottom: '1px solid rgba(0,0,0,0.08)', padding: '16px 16px 14px' },
+  headerTitle: { fontSize: 18, fontWeight: 600, color: '#1a1d1b', marginBottom: 8 },
+  badges: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+  badgeOnline: { display: 'inline-block', padding: '2px 10px', fontSize: 11, fontWeight: 500, borderRadius: 100, background: '#dcfce7', color: '#16a34a' },
+  badgeControl: { display: 'inline-block', padding: '2px 10px', fontSize: 11, fontWeight: 500, borderRadius: 100, background: '#dcfce7', color: '#16a34a' },
+
+  content: { flex: 1, padding: 14, overflowY: 'auto' },
+
+  /* Hz Section */
+  hzSection: { background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 12, padding: 20, marginBottom: 16 },
+  sectionHeader: { fontSize: 13, fontWeight: 500, color: '#5c6560', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 14 },
+  hzDisplay: { textAlign: 'center', marginBottom: 20 },
+  hzValue: { fontSize: 48, fontWeight: 700, color: '#16a34a', lineHeight: 1 },
+  hzUnit: { fontSize: 18, fontWeight: 400, color: '#5c6560', marginLeft: 4 },
+  hzButtons: { display: 'flex', gap: 10, marginBottom: 16 },
+  hzButtonOn: { flex: 1, padding: '10px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.15s' },
+  hzButtonOnDisabled: { flex: 1, padding: '10px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed', opacity: 0.4 },
+  hzButtonOff: { flex: 1, padding: '10px 16px', background: '#fff', color: '#DC2626', border: '2px solid #DC2626', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'background 0.15s' },
+  hzButtonOffDisabled: { flex: 1, padding: '10px 16px', background: '#fff', color: '#DC2626', border: '2px solid #DC2626', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: 'not-allowed', opacity: 0.4 },
+
+  /* Signal Cards */
+  signalCard: { background: '#fff', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 12, padding: 16, marginBottom: 12 },
+  signalCardWarning: { background: '#fff', border: '2px solid #DC2626', borderRadius: 12, padding: 16, marginBottom: 12 },
+  signalName: { fontSize: 12, color: '#5c6560', marginBottom: 6 },
+  signalValueRow: { display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 6 },
+  signalValue: { fontSize: 26, fontWeight: 700, color: '#1a1d1b', lineHeight: 1 },
+  signalValueWarning: { fontSize: 26, fontWeight: 700, color: '#DC2626', lineHeight: 1 },
+  signalEinheit: { fontSize: 13, color: '#5c6560' },
+  signalRange: { fontSize: 11, color: '#9CA3AF' },
+  signalWarningText: { fontSize: 11, color: '#DC2626', fontWeight: 500, marginTop: 4 },
+
+  /* Digital Signal */
+  digitalStatus: { display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 },
+  digitalDotOff: { width: 14, height: 14, borderRadius: '50%', background: '#f0f4f0', border: '1px solid rgba(0,0,0,0.08)', flexShrink: 0 },
+  digitalDotOn: { width: 14, height: 14, borderRadius: '50%', background: '#16a34a', boxShadow: '0 0 6px rgba(22,163,74,0.4)', flexShrink: 0 },
+  digitalLabel: { fontSize: 15, fontWeight: 600, color: '#1a1d1b' },
+
+  footer: { fontSize: 10, color: '#9CA3AF', textAlign: 'center', padding: '8px 0 4px' },
 }
 
-function Badge({ status }) {
-  const cfg = {
-    on:      { label: 'Läuft',    bg: '#EAF3DE', color: '#27500A' },
-    off:     { label: 'Gestoppt', bg: '#f0f0ec', color: '#888' },
-    offline: { label: 'Offline',  bg: '#FAEEDA', color: '#633806' },
+/* Custom slider CSS (injected via <style>) */
+const SLIDER_CSS = `
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+
+  .hz-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    background: #f0f4f0;
+    border-radius: 4px;
+    outline: none;
   }
-  const c = cfg[status] || cfg.off
-  return (
-    <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, background: c.bg, color: c.color, whiteSpace: 'nowrap', flexShrink: 0 }}>
-      {c.label}
-    </span>
-  )
-}
-
-function PumpCard({ pump, onChange }) {
-  const rpm = Math.round(pump.hz * 20)
-  const pct = Math.round((pump.hz / 60) * 100)
-
-  if (pump.status === 'offline') {
-    return (
-      <div style={S.card}>
-        <div style={S.cardHeader}>
-          <div>
-            <div style={S.pumpName}>{pump.name} — {pump.location}</div>
-            <div style={S.pumpSub}>{pump.model} · Verbindung prüfen</div>
-          </div>
-          <Badge status="offline" />
-        </div>
-        <div style={{ fontSize: 12, color: '#888', paddingBottom: 8 }}>Letzter Kontakt: vor 8 Minuten</div>
-        <div style={S.divider} />
-        <div style={S.logRow}><span style={{ color: '#444' }}>WLAN-Verbindung verloren</span><span>09:33</span></div>
-        <div style={S.logRow}><span style={{ color: '#444' }}>Automatisch neu verbinden…</span><span>09:34</span></div>
-      </div>
-    )
+  .hz-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #16a34a;
+    cursor: pointer;
+    border: 3px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
   }
-
-  function handleSlider(val) {
-    const hz = parseInt(val)
-    onChange({ hz, status: hz > 0 ? 'on' : 'off' })
+  .hz-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #16a34a;
+    cursor: pointer;
+    border: 3px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
   }
 
-  return (
-    <div style={S.card}>
-      <div style={S.cardHeader}>
-        <div>
-          <div style={S.pumpName}>{pump.name} — {pump.location}</div>
-          <div style={S.pumpSub}>{pump.model} · Modbus OK</div>
-        </div>
-        <Badge status={pump.status} />
-      </div>
-      <div style={S.stats}>
-        <div style={S.stat}><div style={S.statVal}>{pump.hz}</div><div style={S.statLbl}>Hz</div></div>
-        <div style={S.stat}><div style={S.statVal}>{rpm}</div><div style={S.statLbl}>U/min</div></div>
-        <div style={S.stat}><div style={S.statVal}>{pct}</div><div style={S.statLbl}>%</div></div>
-      </div>
-      <div style={{ marginBottom: 10 }}>
-        <div style={S.sliderLabel}>
-          <span>Drehzahl</span>
-          <span style={{ fontWeight: 500, color: '#1a1a1a' }}>{pump.hz} Hz</span>
-        </div>
-        <input
-          type="range" min="0" max="60" step="1" value={pump.hz}
-          onChange={e => handleSlider(e.target.value)}
-          style={{ width: '100%', accentColor: '#0F6E56' }}
-        />
-      </div>
-      <div style={S.btnRow}>
-        <button style={S.btnStart} onClick={() => onChange({ hz: pump.hz || 30, status: 'on' })}>Einschalten</button>
-        <button style={S.btnStop} onClick={() => onChange({ hz: 0, status: 'off' })}>Ausschalten</button>
-      </div>
-    </div>
-  )
-}
+  @media (max-width: 400px) {
+    body { background: #fafaf8 !important; padding: 0 !important; }
+    .phone { width: 100% !important; border-radius: 0 !important; padding: 0 !important; background: transparent !important; }
+    .screen { border-radius: 0 !important; min-height: 100vh !important; }
+  }
+`
 
 export default function Page() {
-  const [pumps, setPumps] = useState(PUMPS)
-  const [tab, setTab] = useState('pumps')
+  const [sliderHz, setSliderHz] = useState(32.5)
+  const [lastHz, setLastHz] = useState(32.5)
+  const [pressure, setPressure] = useState(3.2)
+  const [trockenlauf, setTrockenlauf] = useState(false)
 
-  function updatePump(id, changes) {
-    setPumps(prev => prev.map(p => p.id === id ? { ...p, ...changes } : p))
+  const isRunning = sliderHz > 0
+
+  function handleTurnOn() {
+    const hz = lastHz > 0 ? lastHz : 50
+    setSliderHz(hz)
+    setLastHz(hz)
   }
 
-  const running = pumps.filter(p => p.status === 'on').length
-  const offline = pumps.filter(p => p.status === 'offline').length
+  function handleTurnOff() {
+    if (sliderHz > 0) setLastHz(sliderHz)
+    setSliderHz(0)
+  }
+
+  function handleSliderChange(e) {
+    const hz = parseFloat(e.target.value)
+    setSliderHz(hz)
+    if (hz > 0) setLastHz(hz)
+  }
+
+  // Simulate pressure sensor: fluctuates based on Hz
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const basePress = isRunning ? 1.0 + (sliderHz / 100) * 7.0 : 0.0
+      const fluctuation = (Math.random() - 0.5) * 0.4
+      const newPressure = Math.max(0, Math.min(10, basePress + fluctuation))
+      setPressure(newPressure)
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [sliderHz, isRunning])
+
+  const pressureWarning = pressure > 8
 
   return (
     <>
-      <style>{`
-        * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
-        @media (max-width: 400px) {
-          body { background: #f5f5f0 !important; padding: 0 !important; }
-          .phone { width: 100% !important; border-radius: 0 !important; padding: 0 !important; background: transparent !important; }
-          .screen { border-radius: 0 !important; min-height: 100vh !important; }
-        }
-      `}</style>
+      <style>{SLIDER_CSS}</style>
 
       <div className="phone" style={S.phone}>
         <div className="screen" style={S.screen}>
 
+          {/* Demo Banner */}
           <div style={S.demoBanner}>Demo-Modus · kiotra.de</div>
 
+          {/* Status Bar */}
           <div style={S.statusBar}>
             <span>9:41</span>
             <span>WLAN ●●●●</span>
           </div>
 
-          <div style={S.topBar}>
-            <div>
-              <div style={S.topTitle}>Meine Pumpen</div>
-              <div style={S.topSub}>
-                Weingut Hofmann · {running} aktiv{offline > 0 ? ` · ${offline} offline` : ''}
+          {/* Header */}
+          <div style={S.header}>
+            <div style={S.headerTitle}>Weinpumpe 3000</div>
+            <div style={S.badges}>
+              <span style={S.badgeOnline}>● Online</span>
+              <span style={S.badgeControl}>Steuerung aktiv</span>
+            </div>
+          </div>
+
+          {/* Scrollable Content */}
+          <div style={S.content}>
+
+            {/* Hz Control Section */}
+            <div style={S.hzSection}>
+              <div style={S.sectionHeader}>Frequenzsteuerung</div>
+              <div style={S.hzDisplay}>
+                <span style={S.hzValue}>{Number(sliderHz).toFixed(1)}</span>
+                <span style={S.hzUnit}>Hz</span>
+              </div>
+              <div style={S.hzButtons}>
+                <button
+                  style={isRunning ? S.hzButtonOnDisabled : S.hzButtonOn}
+                  disabled={isRunning}
+                  onClick={handleTurnOn}
+                >
+                  Einschalten
+                </button>
+                <button
+                  style={!isRunning ? S.hzButtonOffDisabled : S.hzButtonOff}
+                  disabled={!isRunning}
+                  onClick={handleTurnOff}
+                >
+                  Ausschalten
+                </button>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="0.1"
+                value={sliderHz}
+                onChange={handleSliderChange}
+                className="hz-slider"
+              />
+            </div>
+
+            {/* Analog Signals */}
+            <div style={S.sectionHeader}>Analoge Signale</div>
+            <div style={pressureWarning ? S.signalCardWarning : S.signalCard}>
+              <div style={S.signalName}>Pumpendruck (A0)</div>
+              <div style={S.signalValueRow}>
+                <span style={pressureWarning ? S.signalValueWarning : S.signalValue}>
+                  {pressure.toFixed(1)}
+                </span>
+                <span style={S.signalEinheit}>bar</span>
+              </div>
+              <div style={S.signalRange}>Bereich: 0 – 10 bar</div>
+              {pressureWarning && (
+                <div style={S.signalWarningText}>Warnschwelle überschritten</div>
+              )}
+            </div>
+
+            {/* Digital Signals */}
+            <div style={S.sectionHeader}>Digitale Signale</div>
+            <div style={S.signalCard}>
+              <div style={S.signalName}>Trockenlauf (D0)</div>
+              <div style={S.digitalStatus}>
+                <span style={trockenlauf ? S.digitalDotOn : S.digitalDotOff} />
+                <span style={S.digitalLabel}>{trockenlauf ? 'Ein' : 'Aus'}</span>
               </div>
             </div>
-            <div style={S.avatar}>WH</div>
-          </div>
 
-          <div style={S.content}>
-            <div style={S.sectionLabel}>Alle Pumpen</div>
-            {pumps.map(pump => (
-              <PumpCard key={pump.id} pump={pump} onChange={ch => updatePump(pump.id, ch)} />
-            ))}
-            <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', padding: '8px 0 4px' }}>
-              Demo · kiotra.de · Echtzeit-Steuerung per MQTT
+            <div style={S.footer}>
+              Demo · kiotra.de
             </div>
-          </div>
-
-          <div style={S.navbar}>
-            {[
-              { id: 'pumps', label: 'Pumpen', icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="10" width="5" height="8" rx="1"/><rect x="7.5" y="6" width="5" height="12" rx="1"/><rect x="13" y="2" width="5" height="16" rx="1"/></svg> },
-              { id: 'history', label: 'Verlauf', icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg> },
-              { id: 'account', label: 'Konto', icon: <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="7" r="3"/><path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg> },
-            ].map(({ id, label, icon }) => (
-              <button
-                key={id}
-                style={{ ...S.navItem, color: tab === id ? '#0F6E56' : '#888' }}
-                onClick={() => setTab(id)}
-              >
-                {icon}
-                {label}
-              </button>
-            ))}
           </div>
 
         </div>
